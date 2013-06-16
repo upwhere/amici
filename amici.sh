@@ -4,7 +4,7 @@ unalias -a
 PATH="/sbin:/bin:/usr/sbin:/usr/bin"
 cd /
 hash -r
-ulimit -H -c0
+ulimit -H -c 0
 IFS="
  "
 
@@ -23,26 +23,38 @@ corp.aol.com
 aol.com"
 
 debug="false"
+dryrun="false"
 
 database="dig"
 query="+short -t"
 spfquery="$query TXT"
 
+#lets them know this host is prohibited
+ip4injob="--append INPUT --jump REJECT --reject-with icmp-host-prohibited"
+#lets you know their network is prohibited.
+ip4outjob="--append OUTPUT --jump REJECT --reject-with icmp-host-prohibited"
+ip6job="--jump REJECT --reject-with icmp6-adm-prohibited"
 
 echoerr() { echo "$@" >&2; }
 
 command -v grep >/dev/null || { echoerr "Dependency not met: program: grep"; exit 1; }
 command -v sed >/dev/null || { echoerr "Dependency not met: program: sed"; exit 1; }
 command -v $database >/dev/null || { echoerr "Dependency not met: program: $database"; exit 1; }
+command -v iptables >/dev/null || { echoerr "Dependency not met: program: iptables"; exit 1; }
+command -v ip6tables >/dev/null || { echoerr "Dependency not met: program: ip6tables"; exit 1; }
 
 function block4
 {
-	true "I wandered lonely as a cloud."
+	$dryrun||iptables $ip4injob --source $@
+	$dryrun||iptables $ip4outjob --destination $@
+	$debug&&echo "		ip4:$@"
 }
 
 function block6
 {
-	true "I wandered lonely as a cloud."
+	$dryrun||ip6tables $ip6job --append INPUT --source $@
+	$dryrun||ip6tables $ip6job --append OUTPUT --destination $@
+	$debug&&echo "		ip6:$@"
 }
 
 function blockdomain
@@ -64,13 +76,13 @@ function blockspf
 		# record MUST be treated as if those strings are concatenated together
 		# without adding spaces.
 		#
-		spf=$($database $spfquery $domain|grep -oP "(\").*\1"|sed '{s/\"//g}'|grep v=spf)
+		spf=$($database $spfquery $domain|grep --only-matching --perl-regexp "(\").*\1"|sed '{s/\"//g}'|grep v=spf)
 		# clean up modifiers
 		for entry in $spf; do
 			entry=${entry#[-~\?+]}
 			case $entry in
 				##new domains to search##
-				include\:*|ptr\:*|a\:*)
+				include:*|ptr:*|a:*)
 					blockspf ${entry#*:}
 				;;
 				exists:*)
@@ -112,11 +124,19 @@ function blockspf
 
 for argument in "$@";do
 	case $argument in
-		-debug)
+		-v|--debug)
 			debug="true"
 		;;
-		-prism)
+		-n|--dryrun)
+			dryrun="true"
+		;;
+		-p|--prism)
 			blocks=$prism
+		;;
+		-*)
+			echoerr "unknown parameter: $argument"
+			blocks=""
+			break
 		;;
 		*)
 			blocks="$blocks
@@ -126,7 +146,7 @@ $argument"
 done
 
 if [ -z "$blocks" ];then
-	echoerr "Usage: $0 [-debug,-prism] [domain [domain [...]]]"
+	echoerr "Usage: $0 [--debug,--prism,--dryrun] [domain [domain [...]]]"
 	exit 1
 fi
 
