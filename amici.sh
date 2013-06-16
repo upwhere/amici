@@ -14,14 +14,13 @@ set -e
 prism="google.com
 microsoft.com
 apple.com
-www.skype.com
+skype.com
 Yahoo.com
 facebook.com
-www.paltalk.com
+paltalk.com
 Youtube.com
 corp.aol.com
-www.aol.com
-blog.aol.com"
+aol.com"
 
 debug="false"
 
@@ -55,7 +54,6 @@ function blockdomain
 
 function blockspf
 {
-	echo "spfblock for $@"
 	for domain in "$@"; do
 		$debug&&echo $domain
 		### FIXME: ###
