@@ -1,4 +1,31 @@
 #!/bin/sh
+
+#######################################################
+#
+#	amici.sh
+#	
+#	by: up here <iam@upwhere.me>
+#	since: 2013-06-16
+#	
+#	what: Block all addresses associated with a certain
+#		domain using their SPF records. 
+#	
+#	hey: please do distribute this script in any way you
+#		want, including modified, but I will start
+#		throwing frowny faces if you claim it as your
+#		own.
+#	
+#	but: you could also just submit pull requests on
+#		github or something. then we can make the
+#		digital world a better place, together.
+#
+#	github: https://github.com/upwhere/amici
+#
+#	documentation: not much, but it is on github and 
+#		as inline comments.
+#
+#######################################################
+
 #produce a sane environment.
 unalias -a
 PATH="/sbin:/bin:/usr/sbin:/usr/bin"
