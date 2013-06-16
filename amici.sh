@@ -29,12 +29,12 @@ database="dig"
 query="+short -t"
 spfquery="$query TXT"
 
+
 echoerr() { echo "$@" >&2; }
 
 command -v grep >/dev/null || { echoerr "Dependency not met: program: grep"; exit 1; }
 command -v sed >/dev/null || { echoerr "Dependency not met: program: sed"; exit 1; }
 command -v $database >/dev/null || { echoerr "Dependency not met: program: $database"; exit 1; }
-
 
 function blocka
 {
@@ -57,18 +57,25 @@ function blockspf
 		spf=$($database $spfquery $domain|grep -oP "(\").*\1"|sed '{s/\"//g}'|grep v=spf)
 		for entry in $spf; do
 			case $entry in
+				##cleanup##
+				[-~\?+]*)
+					entry=${entry#[-~\?+]}
+				;&
 				##new domains to search##
 				include:*)
-					blockspf $(echo $entry|sed "{s/include://}")
+					blockspf ${entry#*include:}
 				;;
 				ptr:*)
-					blockspf $(echo $entry|sed "{s/ptr://}")
+					blockspf ${entry#*ptr:}
 				;;
 				a:*)
-					blockspf $(echo $entry|sed "{s/a://}")
+					blockspf ${entry#*a:}
+				;;
+				exists:*)
+					#unparsable
 				;;
 				redirect=*)
-					blockspf $(echo $entry|sed "{s/redirect=//}")
+					blockspf ${entry#redirect=}
 				;;
 				##ranges to block##
 				ip4:*)
@@ -78,10 +85,7 @@ function blockspf
 					blocka $entry
 				;;
 				##spf record specifics##
-				a)
-					#covered by blocka $domain, below
-				;;
-				mx)
+				a|mx)
 					#covered by blocka $domain, below
 				;;
 				v=spf*)
@@ -91,7 +95,7 @@ function blockspf
 						# we don't care about integrity, we just want to find all associated domains, continue anyway
 					fi
 				;;
-				?all)
+				all)
 				;;
 				*)
 					echoerr "$domain has unknown entry type: $entry"
