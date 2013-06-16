@@ -36,14 +36,26 @@ command -v grep >/dev/null || { echoerr "Dependency not met: program: grep"; exi
 command -v sed >/dev/null || { echoerr "Dependency not met: program: sed"; exit 1; }
 command -v $database >/dev/null || { echoerr "Dependency not met: program: $database"; exit 1; }
 
-function blocka
+function block4
+{
+	true "I wandered lonely as a cloud."
+}
+
+function block6
+{
+	true "I wandered lonely as a cloud."
+}
+
+function blockdomain
 {
 	$debug&&echo "	$@"
-	true "I wandered lonely as a cloud."
+	block4 $@
+	block6 $@
 }
 
 function blockspf
 {
+	echo "spfblock for $@"
 	for domain in "$@"; do
 		$debug&&echo $domain
 		### FIXME: ###
@@ -55,21 +67,13 @@ function blockspf
 		# without adding spaces.
 		#
 		spf=$($database $spfquery $domain|grep -oP "(\").*\1"|sed '{s/\"//g}'|grep v=spf)
+		# clean up modifiers
 		for entry in $spf; do
+			entry=${entry#[-~\?+]}
 			case $entry in
-				##cleanup##
-				[-~\?+]*)
-					entry=${entry#[-~\?+]}
-				;&
 				##new domains to search##
-				include:*)
-					blockspf ${entry#*include:}
-				;;
-				ptr:*)
-					blockspf ${entry#*ptr:}
-				;;
-				a:*)
-					blockspf ${entry#*a:}
+				include\:*|ptr\:*|a\:*)
+					blockspf ${entry#*:}
 				;;
 				exists:*)
 					#unparsable
@@ -79,23 +83,24 @@ function blockspf
 				;;
 				##ranges to block##
 				ip4:*)
-					blocka $entry
+					block4 ${entry#ip4:}
 				;;
 				ip6:*)
-					blocka $entry
+					block6 ${entry#ip6:}
 				;;
 				##spf record specifics##
-				a|mx)
-					#covered by blocka $domain, below
+				a|mx|ptr|all)
+					#covered by blockdomain $domain, below
+				;;
+				exp=*)
+					#discard explanations, often pattern expanded and thus unparsable.
 				;;
 				v=spf*)
-					version=$(echo $entry|sed "{s/v=//}")
+					version=${entry#v=}
 					if [ $version != "spf1" ];then
 						echoerr "careful: spf version unknown: $version"
 						# we don't care about integrity, we just want to find all associated domains, continue anyway
 					fi
-				;;
-				all)
 				;;
 				*)
 					echoerr "$domain has unknown entry type: $entry"
@@ -103,7 +108,7 @@ function blockspf
 				;;
 			esac
 		done
-		blocka $domain
+		blockdomain $domain
 	done
 }
 
@@ -116,7 +121,7 @@ for argument in "$@";do
 			blocks=$prism
 		;;
 		*)
-			blocks="$blockspfs
+			blocks="$blocks
 $argument"
 		;;
 	esac
