@@ -104,12 +104,12 @@ function block6
 			$dryrun||ip6tables $ip6job --append INPUT --source $@
 		}
 		# make sure this rule does not exist yet
-		ip6tables --check OUTPUT $ip6job --destination $@ 2>/dev/null ||
+	    ip6tables --check OUTPUT $ip6job --destination $@ 2>/dev/null ||
 		{
 			# and if it's not a dry-run, add it.
 			$dryrun||ip6tables $ip6job --append OUTPUT --destination $@
 		}
-		echodebug "		ip6:$@"||true
+		echodebug "		ip6:$@"
 	done
 }
 
@@ -119,7 +119,7 @@ function blockdomain
 	for bdomain in "$@";do
 		echodebug "	$bdomain"
 		block4 $($database $aquery $bdomain)
-		#block6 $@
+		block6 $($database $query AAAA $bdomain)
 	done
 }
 
@@ -171,7 +171,7 @@ function blockspf
 								#covered by blockdomain $domain, below
 							;;
 							exp=*)
-								#discard explanations, often pattern expanded and thus unparsable.
+								#discard exp entries, often pattern expanded and thus unparsable.
 							;;
 							v=spf*)
 								version=${entry#v=}
@@ -203,19 +203,54 @@ function blockspf
 ## parse command-line arguments
 for argument in "$@";do
 	case $argument in
-		-v|--debug)
-			debug="true"
-		;;
-		-n|--dryrun)
-			dryrun="true"
-		;;
-		-p|--prism)
-			blocks=$prism
+		--*)
+			case $argument in
+				--debug)
+					debug="true"
+				;;
+				--dryrun)
+					dryrun="true"
+				;;
+				--prism)
+					blocks="$blocks
+$prism"
+				;;
+				*)
+					echoerr "Unknown flag: $argument"
+				;;
+			esac
 		;;
 		-*)
-			echoerr "unknown parameter: $argument"
-			blocks=""
-			break
+			# foreach character in the short-flag string
+			for (( i=0; i<${#argument}; i++ )); do
+				case ${argument:$i:1} in
+					v)
+						debug="true"
+					;;
+					n)
+						dryrun="true"
+					;;
+					p)
+						blocks="$blocks
+$prism"
+					;;
+					-)
+						#skip the -
+					;;
+					*)
+						if (( ${#argument} > 2 )); then
+							echoerr "Unknown flag: -${argument:$i:1} ( from $argument )"
+						else
+							echoerr "Unknown flag: -${argument:$i:1}"
+						fi
+
+						blocks=""
+						i=-1
+						break
+					;;
+				esac
+				(( i < 0 )) && break
+			done
 		;;
 		*)
 			blocks="$blocks
