@@ -35,8 +35,9 @@ ulimit -H -c 0
 readonly IFS="
  "
 
-set -e
+set -ue
 
+blocks=""
 # wikipedia-listed domains contributing to PRISM 2013-06-15
 readonly prism="google.com
 microsoft.com
@@ -49,6 +50,7 @@ Youtube.com
 corp.aol.com
 aol.com"
 
+unblock="false"
 debug="false"
 dryrun="false"
 
@@ -57,6 +59,7 @@ readonly query="+short -t"
 readonly spfquery="$query TXT"
 readonly aquery="$query A"
 
+iptabaction="--append"
 #lets them know this host is prohibited
 readonly ip4injob="--jump REJECT --reject-with icmp-host-prohibited"
 #lets you know their network is prohibited.
@@ -78,17 +81,19 @@ function block4
 {
 	for address in "$@"; do
 		#make sure it does not exist yet
-		iptables --check INPUT $ip4injob --source $address 2>/dev/null ||
-		{
+		set +e && iptables --check INPUT $ip4injob --source $address 2>/dev/null
+		RET=$? ; set -e
+		if [ $RET $( $unblock && echo "==" || echo "!=" ) 0 ]; then
 			#block if no dry-run
-			$dryrun||iptables --append INPUT $ip4injob --source $address
-		}
+			$dryrun||iptables $iptabaction INPUT $ip4injob --source $address
+		fi
 		#make sure it does not exist yet
-		iptables --check OUTPUT $ip4outjob --destination $address 2>/dev/null ||
-		{
+		set +e && iptables --check OUTPUT $ip4outjob --destination $address 2>/dev/null
+		RET=$? ; set -e
+		if [ $RET $( $unblock && echo "==" || echo "!=" ) 0 ]; then
 			#block if no dry-run
-			$dryrun||iptables --append OUTPUT $ip4outjob --destination $address
-		}
+			$dryrun||iptables $iptabaction OUTPUT $ip4outjob --destination $address
+		fi
 		echodebug "		ip4:$address"
 	done
 }
@@ -98,17 +103,19 @@ function block6
 {
 	for address in "$@"; do
 		# make sure this rule does not exist yet
-		ip6tables --check INPUT $ip6job --source $@ 2>/dev/null ||
-		{
+		set +e && ip6tables --check INPUT $ip6job --source $@ 2>/dev/null
+		RET=$? ; set -e
+		if [ $RET $( $unblock && echo "==" || echo "!=" ) 0 ]; then
 			#if not a dry-run, add it
-			$dryrun||ip6tables $ip6job --append INPUT --source $@
-		}
+			$dryrun||ip6tables $ip6job $iptabaction INPUT --source $@
+		fi
 		# make sure this rule does not exist yet
-	    ip6tables --check OUTPUT $ip6job --destination $@ 2>/dev/null ||
-		{
+		set +e && ip6tables --check OUTPUT $ip6job --destination $@ 2>/dev/null
+		RET=$? ; set -e
+		if [ $RET $( $unblock && echo "==" || echo "!=" ) 0 ]; then
 			# and if it's not a dry-run, add it.
-			$dryrun||ip6tables $ip6job --append OUTPUT --destination $@
-		}
+			$dryrun||ip6tables $ip6job $iptabaction OUTPUT --destination $@
+		fi
 		echodebug "		ip6:$@"
 	done
 }
@@ -205,6 +212,9 @@ for argument in "$@";do
 	case $argument in
 		--*)
 			case $argument in
+				--unblock)
+					unblock="true"
+				;;
 				--debug)
 					debug="true"
 				;;
@@ -224,6 +234,9 @@ $prism"
 			# foreach character in the short-flag string
 			for (( i=0; i<${#argument}; i++ )); do
 				case ${argument:$i:1} in
+					i)
+						unblock="true"
+					;;
 					v)
 						debug="true"
 					;;
@@ -264,6 +277,8 @@ if [ -z "$blocks" ];then
 	echoerr "Usage: $0 [--debug,--prism,--dryrun] [domain [domain [...]]]"
 	exit 1
 fi
+
+$unblock&&iptabaction="--delete"
 
 #start the recursion
 blockspf $blocks

@@ -17,15 +17,18 @@ Once ran, the networks will remain prohibited until you reboot or flush iptables
 ###Options
 
 <dl>
+  <dt>-p</dt>
+  <dt>--prism</dt>
+  <dd>block the known PRISM domains.</dd>
+  <dt>-i</dt>
+  <dt>--unblock</dt>
+  <dd>unblocks domains instead of blocking, experimental.</dd>
   <dt>-v</dt>
   <dt>--debug</dt>
   <dd>debug mode; enables verbose logging.</dd>
   <dt>-n</dt>
   <dt>--dry-run</dt>
   <dd>does everything normally but call iptables.</dd>
-  <dt>-p</dt>
-  <dt>--prism</dt>
-  <dd>block the known PRISM domains.</dd>
 </dl>
 
 Short options can be stacked: `-vn` will enable both debug mode and dry-run, just as `-v -n` would.
@@ -41,7 +44,7 @@ Records spanning multiple strings are not handled according to spec yet, which m
 Amici depends on `grep`, `sed`, `dig`, `iptables` and `ip6tables`. Apart from `dig` and maybe `ip(6)tables`, it won't be easy to work without them.
 
 ###Disabling
-Amici has no option for disabling yet, but you can clear out the iptables rules it set up by issuing the command `iptables -F && ip6tables -F` though this method is a bit destructive. I'll come up with a cleaner way, soon!
+The unblock feature is still experimental, might it prove to be problematic you are always able to flush all blocks form iptables with the `iptables -F && ip6tables -F` command, though this method is a bit destructive. A cleaner method is under development.
 
 ##Licence
 embedded in the [script itself](https://github.com/upwhere/amici/blob/master/amici.sh)
