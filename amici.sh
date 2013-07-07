@@ -215,6 +215,10 @@ for argument in "$@";do
 					blocks="$blocks
 $prism"
 				;;
+				--help)
+					blocks=""
+					break
+				;;
 				*)
 					echoerr "Unknown flag: $argument"
 				;;
@@ -234,6 +238,11 @@ $prism"
 						blocks="$blocks
 $prism"
 					;;
+					h|\?)
+						blocks=""
+						i=-1
+						break
+					;;
 					-)
 						#skip the -
 					;;
@@ -249,8 +258,8 @@ $prism"
 						break
 					;;
 				esac
-				(( i < 0 )) && break
 			done
+			(( i < 0 )) && break
 		;;
 		*)
 			blocks="$blocks
