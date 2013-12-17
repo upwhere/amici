@@ -116,8 +116,24 @@ function block6
 ## block all the DNS addresses we can identify
 function blockdomain
 {
+	## guard recursion
+	local bdomain
 	for bdomain in "$@";do
+		# yahoo's NS records want you to mail to the root zone...
+		[ "$bdomain" = '.' ] && continue 
 		echodebug "	$bdomain"
+
+		blockspf $(
+			$database $query MX $bdomain |
+			#strip the record priorities
+			awk -F' ' '{print $2;}'
+			)
+		blockspf $($database $query PTR $bdomain)
+		blockspf $($database $query CNAME $bdomain)
+		blockspf $($database $query NS $bdomain)
+
+		#TODO: SOA
+
 		block4 $($database $aquery $bdomain)
 		block6 $($database $query AAAA $bdomain)
 	done
@@ -129,6 +145,8 @@ function blockspf
 	## make sure domain is retained during recursion
 	local domain
 	for domain in "$@"; do
+		# yahoo's NS records want you to mail to the root zone...
+		[ "$domain" = '.' ] && continue
 		echodebug $domain
 
 		local txtrecords="$($database $spfquery $domain)
@@ -144,6 +162,7 @@ function blockspf
 			record=${record//\"/}
 			case $record in
 				v=spf*)
+					local entry
 					# each space-separated word...
 					for entry in $record; do
 						# clean up SPF modifiers
