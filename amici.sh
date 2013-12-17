@@ -71,7 +71,7 @@ command -v grep >/dev/null || { echoerr "Dependency not met: program: grep"; exi
 command -v sed >/dev/null || { echoerr "Dependency not met: program: sed"; exit 1; }
 command -v $database >/dev/null || { echoerr "Dependency not met: program: $database"; exit 1; }
 command -v iptables >/dev/null || { echoerr "Dependency not met: program: iptables"; exit 1; }
-command -v ip6tables >/dev/null || { echoerr "Dependency not met: program: ip6tables"; exit 1; }
+command -v ip6tables >/dev/null || { alias ip6tables=':'; }
 
 ## block IPv4 addresses 
 function block4
