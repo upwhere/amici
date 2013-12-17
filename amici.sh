@@ -69,6 +69,7 @@ echodebug() { $debug && echo "$@" ; true; }
 # check if all the commands we need are available
 command -v grep >/dev/null || { echoerr "Dependency not met: program: grep"; exit 1; }
 command -v sed >/dev/null || { echoerr "Dependency not met: program: sed"; exit 1; }
+command -v awk >/dev/null || { echoerr "Dependency not met: program: awk"; exit 1; }
 command -v $database >/dev/null || { echoerr "Dependency not met: program: $database"; exit 1; }
 command -v iptables >/dev/null || { echoerr "Dependency not met: program: iptables"; exit 1; }
 command -v ip6tables >/dev/null || { alias ip6tables=':'; }
@@ -230,6 +231,9 @@ for argument in "$@";do
 				--dryrun)
 					dryrun="true"
 				;;
+				--no-block)
+					dryrun="true"
+				;;
 				--prism)
 					blocks="$blocks
 $prism"
@@ -237,6 +241,28 @@ $prism"
 				--help)
 					blocks=""
 					break
+				;;
+				### TODO: feature selection ###
+				--no-spf)
+					echoerr "This version does not yet support $argument, please check for updates"
+				;;
+				--no-dns)
+					echoerr "This version does not yet support $argument, please check for updates"
+				;;
+				--no-dns-mx)
+					echoerr "This version does not yet support $argument, please check for updates"
+				;;
+				--no-dns-ns)
+					echoerr "This version does not yet support $argument, please check for updates"
+				;;
+				--no-dns-ptr)
+					echoerr "This version does not yet support $argument, please check for updates"
+				;;
+				--no-dns-soa)
+					echoerr "This version does not yet support $argument, please check for updates"
+				;;
+				--no-dns-cname)
+					echoerr "This version does not yet support $argument, please check for updates"
 				;;
 				*)
 					echoerr "Unknown flag: $argument"
