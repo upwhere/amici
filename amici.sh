@@ -52,6 +52,17 @@ aol.com"
 debug="false"
 dryrun="false"
 
+usespf='true'
+usedns='true'
+usemxdns='true'
+usensdns='true'
+useptrdns='true'
+usesoadns='true'
+usecnamedns='true'
+
+useipv4='true'
+useipv6='true'
+
 readonly database="dig"
 readonly query="+short -t"
 readonly spfquery="$query TXT"
@@ -77,7 +88,7 @@ command -v ip6tables >/dev/null || { alias ip6tables=':'; }
 ## block IPv4 addresses 
 function block4
 {
-	for address in "$@"; do
+	$useipv4 && for address in "$@"; do
 		#make sure it does not exist yet
 		iptables --check INPUT $ip4injob --source $address 2>/dev/null ||
 		{
@@ -92,12 +103,13 @@ function block4
 		}
 		echodebug "		ip4:$address"
 	done
+	true
 }
 
 ## block IPv6 addresses
 function block6
 {
-	for address in "$@"; do
+	$useipv6 && for address in "$@"; do
 		# make sure this rule does not exist yet
 		ip6tables --check INPUT $ip6job --source $@ 2>/dev/null ||
 		{
@@ -112,6 +124,7 @@ function block6
 		}
 		echodebug "		ip6:$@"
 	done
+	true
 }
 
 ## block all the DNS addresses we can identify
@@ -124,24 +137,27 @@ function blockdomain
 		[ "$bdomain" = '.' ] && continue 
 		echodebug "	$bdomain"
 
-		blockspf $(
-			$database $query MX $bdomain |
-			#strip the record priorities
-			awk -F' ' '{print $2;}'
-			)
-		blockspf $($database $query PTR $bdomain)
-		blockspf $($database $query CNAME $bdomain)
-		blockspf $($database $query NS $bdomain)
+		if $usedns; then
+			$usemxdns && blockspf $(
+				$database $query MX $bdomain |
+				#strip the record priorities
+				awk -F' ' '{print $2;}'
+				)
+			$useptrdns && blockspf $($database $query PTR $bdomain)
+			$usecnamedns && blockspf $($database $query CNAME $bdomain)
+			$usensdns && blockspf $($database $query NS $bdomain)
 
-		local authority
-		for authority in "$($database $query SOA $bdomain)";do
-			# we really only need the first two fields but aoeu
-			case $authority in *.) blockspf $authority ;; esac
-		done
+			local authority
+			$usesoadns && for authority in "$($database $query SOA $bdomain)";do
+				# we really only need the first two fields but aoeu
+				case $authority in *.) blockspf $authority ;; esac
+			done
+		fi
 
 		block4 $($database $aquery $bdomain)
 		block6 $($database $query AAAA $bdomain)
 	done
+	true
 }
 
 ## search for and block everything in the SPF records of the passed domains
@@ -154,7 +170,8 @@ function blockspf
 		[ "$domain" = '.' ] && continue
 		echodebug $domain
 
-		local txtrecords="$($database $spfquery $domain)
+		local txtrecords=""
+		$usespf && txtrecords="$($database $spfquery $domain)
 "		#while there are TXT records left
 		while [ -n "$txtrecords" ];do
 			#grab one record
@@ -221,6 +238,7 @@ function blockspf
 		done
 		## now that the SPF has been parsed and blocked, block everything else on this domain.
 		blockdomain $domain
+		true
 	done
 }
 
@@ -248,25 +266,34 @@ $prism"
 				;;
 				### TODO: feature selection ###
 				--no-spf)
-					echoerr "This version does not yet support $argument, please check for updates"
+					usespf="false"
 				;;
 				--no-dns)
-					echoerr "This version does not yet support $argument, please check for updates"
+					usedns="false"
 				;;
-				--no-dns-mx)
-					echoerr "This version does not yet support $argument, please check for updates"
+				--no-a-dns)
+					useipv4='false'
 				;;
-				--no-dns-ns)
-					echoerr "This version does not yet support $argument, please check for updates"
+				--no-aaaa-dns)
+					useipv6='false'
 				;;
-				--no-dns-ptr)
-					echoerr "This version does not yet support $argument, please check for updates"
+				--no-mx-dns)
+					usemxdns="false"
 				;;
-				--no-dns-soa)
-					echoerr "This version does not yet support $argument, please check for updates"
+				--no-ns-dns)
+					usensdns="false"
 				;;
-				--no-dns-cname)
-					echoerr "This version does not yet support $argument, please check for updates"
+				--no-ptr-dns)
+					useptrdns="false"
+				;;
+				--no-soa-dns)
+					usesoadns="false"
+				;;
+				--no-cname-dns)
+					usecnamedns="false"
+				;;
+				--no-*-dns)
+					echoerr "This version does not use ${argument#--no-}"
 				;;
 				*)
 					echoerr "Unknown flag: $argument"
