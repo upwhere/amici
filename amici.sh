@@ -133,7 +133,11 @@ function blockdomain
 		blockspf $($database $query CNAME $bdomain)
 		blockspf $($database $query NS $bdomain)
 
-		#TODO: SOA
+		local authority
+		for authority in "$($database $query SOA $bdomain)";do
+			# we really only need the first two fields but aoeu
+			case $authority in *.) blockspf $authority ;; esac
+		done
 
 		block4 $($database $aquery $bdomain)
 		block6 $($database $query AAAA $bdomain)
